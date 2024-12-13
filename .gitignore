@@ -3,3 +3,4 @@ venv/
 *.pyc
 *.pyo
 .DS_Store  # macOS specific
+.env
