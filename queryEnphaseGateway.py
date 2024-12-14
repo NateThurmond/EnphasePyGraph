@@ -22,7 +22,11 @@ data_req_headers = {
     'Authorization': f'Bearer {token}'
 }
 resp = requests.get(
-    os.getenv('ENPHASE_IQ_GATEWAY_IP') + '/production/inverters',
+    os.getenv('ENPHASE_IQ_GATEWAY_IP') + '/api/v1/production/inverters', # Works
+    # os.getenv('ENPHASE_IQ_GATEWAY_IP') + '/ivp/meters/reports/consumption', # Works
+    # os.getenv('ENPHASE_IQ_GATEWAY_IP') + '/ivp/meters/readings', # Works
+    # More info on why this route is not working in README
+    # os.getenv('ENPHASE_IQ_GATEWAY_IP') + '/ivp/pdm/energy', # AUTH REQUIRED err
     headers=data_req_headers,
     verify=False
 )
