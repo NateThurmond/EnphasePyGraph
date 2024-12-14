@@ -4,3 +4,4 @@ venv/
 *.pyo
 .DS_Store  # macOS specific
 .env
+token_db.sqlite
