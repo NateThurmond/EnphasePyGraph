@@ -1,3 +1,6 @@
+import threading
+from flask import Flask, render_template_string, send_file
+from io import BytesIO
 from dotenv import load_dotenv
 from TokenManager import TokenManager
 from datetime import datetime
@@ -7,7 +10,15 @@ import warnings
 import requests
 import json
 import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.animation as animation
+import time
+
+# Use the Agg backend for Matplotlib
+matplotlib.use('Agg')
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Get the local timezone
 local_tz = get_localzone()
@@ -88,7 +99,7 @@ def process_data(prod_cons_data):
         oldest_epoch = min(chartData.keys())
         del chartData[oldest_epoch]
 
-def plot_data(frame):
+def plot_data():
     # Get new data
     prod_cons_data = fetch_data('/ivp/meters/reports/')
     process_data(prod_cons_data)
@@ -98,7 +109,7 @@ def plot_data(frame):
     production, net_consumption, tot_consumption = zip(*[chartData[epoch] for epoch in epochs])
     times = [datetime.fromtimestamp(epoch, local_tz).strftime('%I:%M:%S %p') for epoch in epochs]
 
-    ax.clear()
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(times, production, label='Production (W)', marker='o')
     ax.plot(times, net_consumption, label='Net Consumption (W)', marker='o')
     ax.plot(times, tot_consumption, label='Tot Consumption (W)', marker='o')
@@ -110,12 +121,36 @@ def plot_data(frame):
     plt.xticks(rotation=45)
     plt.tight_layout()
 
-def main():
-    global ax
-    fig, ax = plt.subplots(figsize=(12, 6), num='Enphase Python Graph')
-    plot_data(0) # Run the plot_data function once initially
-    ani = animation.FuncAnimation(fig, plot_data, interval=queryInterval, cache_frame_data=False)
-    plt.show()
+    # Save the plot to a BytesIO object
+    img = BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    plt.close(fig)
+    return img
+
+def update_plot():
+    while True:
+        plot_data()
+        time.sleep(queryInterval)
+
+@app.route('/')
+def index():
+    return render_template_string('''
+        <html>
+            <head><title>Solar Panel Production and Consumption</title></head>
+            <body>
+                <h1>Solar Panel Production and Consumption</h1>
+                <img src="/plot.png" alt="Solar Panel Production and Consumption">
+            </body>
+        </html>
+    ''')
+
+@app.route('/plot.png')
+def plot_png():
+    img = plot_data()
+    return send_file(img, mimetype='image/png')
 
 if __name__ == "__main__":
-    main()
+    # Start the background thread to update the plot
+    threading.Thread(target=update_plot, daemon=True).start()
+    app.run(host='0.0.0.0', port=5001)
