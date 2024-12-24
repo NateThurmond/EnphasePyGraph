@@ -22,7 +22,8 @@ The Enphase App (and site) rely on data uploaded from your local Enphase IQ Gate
     cd pyEnphaseGraph
     ```
 2. **Set up the virtual environment (optional, if using pyenv)**:
-    ```pyenv virtualenv 3.10.0 myenv
+    ```
+    pyenv virtualenv 3.10.0 myenv
     pyenv activate myenv
     ```
 3. **Install the dependencies**:  

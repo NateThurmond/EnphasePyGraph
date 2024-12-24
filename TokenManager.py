@@ -12,7 +12,7 @@ class TokenManager:
         self.token_time = None
 
         # Connect to the SQLite database (or create it if it doesn't exist)
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
         self._create_table()
         self._get_saved_token()
