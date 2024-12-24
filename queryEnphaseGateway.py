@@ -150,11 +150,11 @@ def plot_data():
     ax.grid(True)
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.2)
+    plt.subplots_adjust(bottom=0.4)
 
     # Use AutoDateLocator and DateFormatter to handle time-based data
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S %p'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
 
     # Use MaxNLocator to limit the number of x-axis labels
     ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
