@@ -3,13 +3,15 @@ import time
 import requests
 import os
 import json
+from threading import Lock
 
 class TokenManager:
-    def __init__(self, db_path="token_db.sqlite", expiration_time=3600):
+    def __init__(self, db_path="py_enphase_db.sqlite", expiration_time=3600):
         self.db_path = db_path
         self.expiration_time = expiration_time  # expiration time in seconds
         self.token = None
         self.token_time = None
+        self.lock = Lock()
 
         # Connect to the SQLite database (or create it if it doesn't exist)
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -18,30 +20,37 @@ class TokenManager:
         self._get_saved_token()
 
     def _create_table(self):
-        """Create a table to store token if it doesn't already exist."""
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tokens (
-                id INTEGER PRIMARY KEY,
-                token TEXT,
-                time INTEGER
-            )
-        """)
-        self.conn.commit()
+        with self.lock:
+            """Create a table to store token if it doesn't already exist."""
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tokens (
+                    id INTEGER PRIMARY KEY,
+                    token TEXT,
+                    time INTEGER
+                )
+            """)
+            self.conn.commit()
 
     def _get_saved_token(self):
-        """Retrieve the saved token and time from the database."""
-        self.cursor.execute("SELECT token, time FROM tokens WHERE id = 1")
-        result = self.cursor.fetchone()
-        if result:
-            self.token, self.token_time = result
-        return self.token, self.token_time
+        with self.lock:
+            """Retrieve the saved token and time from the database."""
+            self.cursor.execute("SELECT token, time FROM tokens WHERE id = 1")
+            result = self.cursor.fetchone()
+            if result:
+                self.token, self.token_time = result
+            return self.token, self.token_time
 
     def _save_token(self, token):
-        """Save the new token and time in the database."""
-        self.token_time = int(time.time())
-        self.token = token
-        self.cursor.execute("REPLACE INTO tokens (id, token, time) VALUES (1, ?, ?)", (self.token, self.token_time))
-        self.conn.commit()
+        with self.lock:
+            try:
+                """Save the new token and time in the database."""
+                self.token_time = int(time.time())
+                self.token = token
+                self.cursor.execute("REPLACE INTO tokens (id, token, time) VALUES (1, ?, ?)", (self.token, self.token_time))
+                self.conn.commit()
+            except sqlite3.OperationalError as e:
+                print(f"Database error: {e}. Reconnecting...")
+                self._reconnect()
 
     def _is_token_valid(self):
         """Check if the token is valid based on expiration time."""
@@ -96,4 +105,21 @@ class TokenManager:
 
     def close(self):
         """Close the database connection."""
-        self.conn.close()
+        with self.lock:
+            self.conn.close()
+
+    def _reconnect(self):
+        """Reconnect to the database in case of connection issues."""
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.cursor = self.conn.cursor()
+
+    def __enter__(self):
+        """Ensure the database connection is open."""
+        if not self.conn or not self.cursor:
+            self._reconnect()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        self.conn = None
+        self.cursor = None
