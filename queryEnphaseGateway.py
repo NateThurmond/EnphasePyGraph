@@ -1,6 +1,6 @@
+import io
 import threading
 from flask import Flask, render_template_string, send_file
-from io import BytesIO
 from dotenv import load_dotenv
 from matplotlib.ticker import MaxNLocator
 from TokenManager import TokenManager
@@ -62,8 +62,10 @@ token_manager = TokenManager(expiration_time=3600)
 chartData = {}
 # Max axis points, can later base on cumulative time
 maxPoints = 96
-# How often to query for new data (in milliseconds)
-queryInterval = 60000 * 15
+# How often to query for new data (in seconds)
+queryInterval = 60 * 15
+# Reference to png image of last updated state of chart (Shown in browser)
+img = None
 
 def fetch_data(endpoint):
 
@@ -111,11 +113,8 @@ def process_data(prod_cons_data):
         del chartData[oldest_epoch]
 
 def plot_data():
-    # Get new data
-    prod_cons_data = fetch_data('/ivp/meters/reports/')
-    process_data(prod_cons_data)
-
-    # And build out from global data just appended to
+    global img
+    # Build out from global data just appended to
     epochs = sorted(chartData.keys())
     production, net_consumption, tot_consumption = zip(*[chartData[epoch] for epoch in epochs])
     times = [datetime.fromtimestamp(epoch, local_tz).strftime('%Y-%m-%d %I:%M:%S %p') for epoch in epochs]
@@ -136,14 +135,16 @@ def plot_data():
     ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
 
     # Save the plot to a BytesIO object
-    img = BytesIO()
+    img = io.BytesIO()
     plt.savefig(img, format='png')
     img.seek(0)
     plt.close(fig)
-    return img
 
 def update_plot():
     while True:
+        # Get new data
+        prod_cons_data = fetch_data('/ivp/meters/reports/')
+        process_data(prod_cons_data)
         plot_data()
         time.sleep(queryInterval)
 
@@ -161,8 +162,7 @@ def index():
 
 @app.route('/plot.png')
 def plot_png():
-    img = plot_data()
-    return send_file(img, mimetype='image/png')
+    return send_file(io.BytesIO(img.getvalue()), mimetype='image/png')
 
 if __name__ == "__main__":
     # Start the background thread to update the plot
