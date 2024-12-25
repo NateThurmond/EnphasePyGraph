@@ -4,6 +4,7 @@ from flask import Flask, render_template_string, send_file
 from dotenv import load_dotenv
 from matplotlib.ticker import MaxNLocator
 from TokenManager import TokenManager
+from RequestStorage import RequestStorage
 from datetime import datetime
 from tzlocal import get_localzone
 import os
@@ -11,6 +12,7 @@ import warnings
 import requests
 import json
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import matplotlib
 import matplotlib.animation as animation
 import time
@@ -67,10 +69,19 @@ queryInterval = 60 * 15
 # Reference to png image of last updated state of chart (Shown in browser)
 img = None
 
+# Track historical api requests in this class to help fill out chart on first load
+request_storage = RequestStorage(reqPullLimit=maxPoints)
+with request_storage as rs:
+    prevSavedChartData = rs.get_saved_req()
+
+# If we have previously saved chart data utilize it
+if len(prevSavedChartData) > 0:
+    chartData = prevSavedChartData
+
 def fetch_data(endpoint):
 
-    token = token_manager.get_token()
-    token_manager.close()
+    with token_manager as tm:
+        token = tm.get_token()
 
     data_req_headers = {
         'Accept': 'application/json',
@@ -100,6 +111,15 @@ def process_data(prod_cons_data):
     #         tot_con['cumulative']['currW']
     #     ]
 
+    # Save in Database for future reference
+    with request_storage as rs:
+        rs.save_req(
+            epoch,
+            prod['cumulative']['currW'],
+            net_con['cumulative']['currW'],
+            tot_con['cumulative']['currW']
+        )
+
     chartData[epoch] = [
         prod['cumulative']['currW'],
         net_con['cumulative']['currW'],
@@ -117,7 +137,7 @@ def plot_data():
     # Build out from global data just appended to
     epochs = sorted(chartData.keys())
     production, net_consumption, tot_consumption = zip(*[chartData[epoch] for epoch in epochs])
-    times = [datetime.fromtimestamp(epoch, local_tz).strftime('%Y-%m-%d %I:%M:%S %p') for epoch in epochs]
+    times = [datetime.fromtimestamp(epoch, local_tz) for epoch in epochs]
 
     fig, ax = plt.subplots(figsize=(15, 6))
     ax.plot(times, production, label='Production (W)', marker='o')
@@ -130,6 +150,11 @@ def plot_data():
     ax.grid(True)
     plt.xticks(rotation=45)
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.4)
+
+    # Use AutoDateLocator and DateFormatter to handle time-based data
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
 
     # Use MaxNLocator to limit the number of x-axis labels
     ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
