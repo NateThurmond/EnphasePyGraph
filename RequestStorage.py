@@ -20,9 +20,9 @@ class RequestStorage:
                 CREATE TABLE IF NOT EXISTS apiReqWattage (
                     id INTEGER PRIMARY KEY,
                     reqEpoch INTEGER,
-                    prod_cumu_currW TEXT,
-                    net_cumu_currW TEXT,
-                    total_cumu_currW TEXT
+                    prod_cumu_currW INTEGER,
+                    net_cumu_currW INTEGER,
+                    total_cumu_currW INTEGER
                 )
             """)
             self.conn.commit()
