@@ -1,5 +1,6 @@
 import sqlite3
 from threading import Lock
+import time
 
 class RequestStorage:
     def __init__(self, db_path="py_enphase_db.sqlite", reqPullLimit=96):
@@ -30,8 +31,14 @@ class RequestStorage:
     def get_saved_req(self):
         with self.lock:
             """Retrieve the saved api req data and time from the database."""
+
+            # Limit API fetched data to the last 3 days
+            current_time = int(time.time())
+            time_72_hours_ago = current_time - (72 * 60 * 60)
+
+            # Retrieve historical API data
             self.cursor.execute("SELECT reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW "
-                + "FROM apiReqWattage ORDER BY reqEpoch DESC LIMIT ?", (self.reqPullLimit,))
+                + "FROM apiReqWattage WHERE reqEpoch >= ? ORDER BY reqEpoch DESC LIMIT ?", (time_72_hours_ago, self.reqPullLimit,))
             result = self.cursor.fetchall()
             if result:
                 return self._transform_saved_data(result)
