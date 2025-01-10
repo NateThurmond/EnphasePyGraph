@@ -3,8 +3,9 @@ from threading import Lock
 import time
 
 class RequestStorage:
-    def __init__(self, db_path="py_enphase_db.sqlite", reqPullLimit=96):
+    def __init__(self, db_path="py_enphase_db.sqlite", reqPullLimit=96, runMode="cumulative"):
         self.reqPullLimit = reqPullLimit
+        self.runMode = runMode
         self.db_path = db_path
         self.lock = Lock()
 
@@ -42,9 +43,14 @@ class RequestStorage:
             current_time = int(time.time())
             time_72_hours_ago = current_time - (72 * 60 * 60)
 
+            # whDlvdCum used for cumulative/average mode and currW for current mode
+            powerAttrKeys = "prod_cumu_whDlvd, net_cumu_whDlvd, total_cumu_whDlvd"
+            if self.runMode == "current":
+                powerAttrKeys = "prod_cumu_currW, net_cumu_currW, total_cumu_currW"
+
             # Retrieve historical API data
             self.cursor.execute(
-                "SELECT reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW "
+                f"SELECT reqEpoch, {powerAttrKeys} "
                 + "FROM apiReqWattage WHERE reqEpoch >= ? ORDER BY reqEpoch DESC LIMIT ?",
                 (time_72_hours_ago, self.reqPullLimit,)
             )

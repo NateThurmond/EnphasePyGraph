@@ -68,9 +68,11 @@ maxPoints = 96
 queryInterval = 60 * 15
 # Reference to png image of last updated state of chart (Shown in browser)
 img = None
+# Determines whether current watts or cumulative watts (average) are used for chart
+runMode = "cumulative" # Other mode is "current"
 
 # Track historical api requests in this class to help fill out chart on first load
-request_storage = RequestStorage(reqPullLimit=maxPoints)
+request_storage = RequestStorage(reqPullLimit=maxPoints, runMode=runMode)
 with request_storage as rs:
     prevSavedChartData = rs.get_saved_req()
 
@@ -120,11 +122,12 @@ def process_data(prod_cons_data):
             tot_con['cumulative']
         )
 
-    # "whDlvdCum" or "whRcvdCum" may be more applicable here instead of "currW"
+    # whDlvdCum used for cumulative/average mode and currW for current mode
+    powerAttrKey = runMode == "cumulative" and 'whDlvdCum' or 'currW'
     chartData[epoch] = [
-        prod['cumulative']['currW'],
-        net_con['cumulative']['currW'],
-        tot_con['cumulative']['currW']
+        prod['cumulative'][powerAttrKey],
+        net_con['cumulative'][powerAttrKey],
+        tot_con['cumulative'][powerAttrKey]
     ]
 
     # For now only store N amount of entries
@@ -133,12 +136,77 @@ def process_data(prod_cons_data):
         oldest_epoch = min(chartData.keys())
         del chartData[oldest_epoch]
 
+# Works with cumulative watt hrs delivered to form averages from the last reporting period
+def calculate_instantaneous_power(chart_data):
+    # Calculate instantaneous power based on cumulative energy values in chart_data
+    processed_data = {}
+    epochs = sorted(chart_data.keys())
+
+    if not epochs:
+        return processed_data  # No data to process
+
+    # Initialize variables for day tracking
+    previous_day = datetime.fromtimestamp(epochs[0], local_tz).date()
+    previous_epoch = epochs[0]
+    previous_values = chart_data[previous_epoch]
+
+    # Placeholder for the first entry (set to zero for instantaneous power)
+    processed_data[previous_epoch] = [0, 0, 0]
+
+    for i in range(1, len(epochs)):
+        current_epoch = epochs[i]
+        current_values = chart_data[current_epoch]
+        current_day = datetime.fromtimestamp(current_epoch, local_tz).date()
+
+        # Check if the day has rolled over
+        if current_day != previous_day:
+            # Reset cumulative values for the new day
+            processed_data[current_epoch] = [0, 0, 0]
+            previous_day = current_day
+            previous_epoch = current_epoch
+            previous_values = current_values
+            continue
+
+        # Calculate time difference in hours
+        time_diff_seconds = current_epoch - previous_epoch
+        time_diff_hours = time_diff_seconds / 3600  # Convert to hours
+
+        # Calculate deltas
+        delta_prod = max(0, current_values[0] - previous_values[0])  # Production
+        delta_net = max(0, current_values[1] - previous_values[1])  # Net Consumption
+        delta_tot = max(0, current_values[2] - previous_values[2])  # Total Consumption
+
+        # Calculate instantaneous power (W)
+        prod_power = delta_prod / time_diff_hours if time_diff_hours > 0 else 0
+        net_power = delta_net / time_diff_hours if time_diff_hours > 0 else 0
+        tot_power = delta_tot / time_diff_hours if time_diff_hours > 0 else 0
+
+        # Store calculated power in the processed data
+        processed_data[current_epoch] = [prod_power, net_power, tot_power]
+
+        # Update previous values
+        previous_epoch = current_epoch
+        previous_values = current_values
+
+    return processed_data
+
 def plot_data():
-    global img
+    global img, chartData
+
+    # Create a local copy of chartData to modify within this function
+    local_chart_data = chartData.copy()
+
+    # Process the local copy to calculate instantaneous power (if cumulative mode is enabled)
+    if runMode == "cumulative":
+        chartData = calculate_instantaneous_power(local_chart_data)
+
     # Build out from global data just appended to
     epochs = sorted(chartData.keys())
     production, net_consumption, tot_consumption = zip(*[chartData[epoch] for epoch in epochs])
     times = [datetime.fromtimestamp(epoch).astimezone(local_tz) for epoch in epochs]
+
+    # Set back global chartData
+    chartData = local_chart_data
 
     fig, ax = plt.subplots(figsize=(15, 6))
     ax.plot(times, production, label='Production (W)', marker='o')
