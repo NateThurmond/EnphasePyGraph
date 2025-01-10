@@ -115,11 +115,12 @@ def process_data(prod_cons_data):
     with request_storage as rs:
         rs.save_req(
             epoch,
-            prod['cumulative']['currW'],
-            net_con['cumulative']['currW'],
-            tot_con['cumulative']['currW']
+            prod['cumulative'],
+            net_con['cumulative'],
+            tot_con['cumulative']
         )
 
+    # "whDlvdCum" or "whRcvdCum" may be more applicable here instead of "currW"
     chartData[epoch] = [
         prod['cumulative']['currW'],
         net_con['cumulative']['currW'],
@@ -158,6 +159,13 @@ def plot_data():
 
     # Use MaxNLocator to limit the number of x-axis labels
     ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
+
+    # Set y-axis limits manually to avoid outliers
+    ax.set_ylim([
+        min(min(production), min(net_consumption), min(tot_consumption)) * 1.1,
+        max(max(production), max(net_consumption), max(tot_consumption)) * 1.1
+    ])
 
     # Save the plot to a BytesIO object
     img = io.BytesIO()

@@ -23,7 +23,13 @@ class RequestStorage:
                     reqEpoch INTEGER,
                     prod_cumu_currW INTEGER,
                     net_cumu_currW INTEGER,
-                    total_cumu_currW INTEGER
+                    total_cumu_currW INTEGER,
+                    prod_cumu_whDlvd INTEGER,
+                    net_cumu_whDlvd INTEGER,
+                    total_cumu_whDlvd INTEGER,
+                    prod_cumu_whRcvd INTEGER,
+                    net_cumu_whRcvd INTEGER,
+                    total_cumu_whRcvd INTEGER
                 )
             """)
             self.conn.commit()
@@ -37,8 +43,11 @@ class RequestStorage:
             time_72_hours_ago = current_time - (72 * 60 * 60)
 
             # Retrieve historical API data
-            self.cursor.execute("SELECT reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW "
-                + "FROM apiReqWattage WHERE reqEpoch >= ? ORDER BY reqEpoch DESC LIMIT ?", (time_72_hours_ago, self.reqPullLimit,))
+            self.cursor.execute(
+                "SELECT reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW "
+                + "FROM apiReqWattage WHERE reqEpoch >= ? ORDER BY reqEpoch DESC LIMIT ?",
+                (time_72_hours_ago, self.reqPullLimit,)
+            )
             result = self.cursor.fetchall()
             if result:
                 return self._transform_saved_data(result)
@@ -48,8 +57,17 @@ class RequestStorage:
         with self.lock:
             try:
                 """Save the new api request data and time in the database."""
-                self.cursor.execute("REPLACE INTO apiReqWattage (reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW) "
-                    + "VALUES (?, ?, ?, ?)", (epoch, prod, net, total))
+                self.cursor.execute("REPLACE INTO apiReqWattage "
+                    + "(reqEpoch, prod_cumu_currW, net_cumu_currW, total_cumu_currW, "
+                    + "prod_cumu_whDlvd, net_cumu_whDlvd, total_cumu_whDlvd, "
+                    + "prod_cumu_whRcvd, net_cumu_whRcvd, total_cumu_whRcvd) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        epoch, prod['currW'], net['currW'], total['currW'],
+                        prod['whDlvdCum'], net['whDlvdCum'], total['whDlvdCum'],
+                        prod['whRcvdCum'], net['whRcvdCum'], total['whRcvdCum']
+                    )
+                )
                 self.conn.commit()
             except sqlite3.OperationalError as e:
                 print(f"Database error: {e}. Reconnecting...")
