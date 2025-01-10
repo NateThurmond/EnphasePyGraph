@@ -1,0 +1,15 @@
+[Unit]
+Description=Show local Enphase Gateway metrics via python app
+After=network.target
+
+[Service]
+ExecStart=/usr/local/pyenv/versions/pyEnChartTest/bin/python /home/pi/EnphasePyGraph/queryEnphaseGateway.py
+WorkingDirectory=/home/pi/EnphasePyGraph
+Environment="PYENV_ROOT=/usr/local/pyenv"
+Environment="PATH=/usr/local/pyenv/bin:/usr/local/pyenv/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Restart=always
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

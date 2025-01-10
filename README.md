@@ -41,6 +41,36 @@ The Enphase App (and site) rely on data uploaded from your local Enphase IQ Gate
     ```
     python queryEnphaseGateway.py
     ```
+7. **OR set up as a service**:
+
+    1. **Create the service file (and mod as needed)**:
+
+        ```sh
+        sudo cp pyEnphaseGraph.service /etc/systemd/system/
+        ```
+
+    2. **Reload the systemd daemon to recognize the new service**:
+
+        ```sh
+        sudo systemctl daemon-reload
+        ```
+
+    3. **Enable the service to start on boot**:
+
+        ```sh
+        sudo systemctl enable pyEnphaseGraph.service
+        ```
+
+    4. **Start the service**:
+
+        ```sh
+        sudo systemctl start pyEnphaseGraph.service
+        ```
+
+    5. **Check the status of the service**:
+        ```sh
+        sudo systemctl status pyEnphaseGraph.service
+        ```
 
 Inspiration, code snippets, etc.
 
