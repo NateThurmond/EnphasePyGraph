@@ -138,7 +138,7 @@ def plot_data():
     # Build out from global data just appended to
     epochs = sorted(chartData.keys())
     production, net_consumption, tot_consumption = zip(*[chartData[epoch] for epoch in epochs])
-    times = [datetime.fromtimestamp(epoch, local_tz) for epoch in epochs]
+    times = [datetime.fromtimestamp(epoch).astimezone(local_tz) for epoch in epochs]
 
     fig, ax = plt.subplots(figsize=(15, 6))
     ax.plot(times, production, label='Production (W)', marker='o')
@@ -155,7 +155,7 @@ def plot_data():
 
     # Use AutoDateLocator and DateFormatter to handle time-based data
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S', tz=local_tz))
 
     # Use MaxNLocator to limit the number of x-axis labels
     ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
