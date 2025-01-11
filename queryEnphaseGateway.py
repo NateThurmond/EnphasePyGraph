@@ -1,22 +1,18 @@
 import io
+import os
+import time
+import warnings
 import threading
+from datetime import datetime
 from flask import Flask, render_template_string, send_file
 from dotenv import load_dotenv
 from matplotlib.ticker import FuncFormatter, MaxNLocator
-from TokenManager import TokenManager
-from RequestStorage import RequestStorage
-from datetime import datetime
-from tzlocal import get_localzone
-import os
-import warnings
-import requests
-import json
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib
-import matplotlib.animation as animation
-import matplotlib.dates as mdates
-import time
+import requests
+from TokenManager import TokenManager
+from RequestStorage import RequestStorage
 
 # Use the Agg backend for Matplotlib
 matplotlib.use('Agg')
@@ -132,7 +128,6 @@ def process_data(prod_cons_data):
     ]
 
     # For now only store N amount of entries
-    # print(json.dumps(chartData))
     if len(chartData) > maxPoints:
         oldest_epoch = min(chartData.keys())
         del chartData[oldest_epoch]
@@ -147,7 +142,6 @@ def calculate_instantaneous_power(chart_data):
         return processed_data  # No data to process
 
     # Initialize variables for day tracking
-    previous_day = datetime.fromtimestamp(epochs[0], local_tz).date()
     previous_epoch = epochs[0]
     previous_values = chart_data[previous_epoch]
 
@@ -157,16 +151,6 @@ def calculate_instantaneous_power(chart_data):
     for i in range(1, len(epochs)):
         current_epoch = epochs[i]
         current_values = chart_data[current_epoch]
-        current_day = datetime.fromtimestamp(current_epoch, local_tz).date()
-
-        # Check if the day has rolled over
-        if current_day != previous_day:
-            # Reset cumulative values for the new day
-            processed_data[current_epoch] = [0, 0, 0]
-            previous_day = current_day
-            previous_epoch = current_epoch
-            previous_values = current_values
-            continue
 
         # Calculate time difference in hours
         time_diff_seconds = current_epoch - previous_epoch
