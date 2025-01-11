@@ -2,7 +2,7 @@ import io
 import threading
 from flask import Flask, render_template_string, send_file
 from dotenv import load_dotenv
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 from TokenManager import TokenManager
 from RequestStorage import RequestStorage
 from datetime import datetime
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib
 import matplotlib.animation as animation
+import matplotlib.dates as mdates
 import time
 
 # Use the Agg backend for Matplotlib
@@ -190,6 +191,14 @@ def calculate_instantaneous_power(chart_data):
 
     return processed_data
 
+# Custom date/time labels for X Axis based on whether its day roll-over
+def custom_date_formatter(x, pos, times):
+    dt = mdates.num2date(x).astimezone(local_tz)
+    if dt.hour == 0 and dt.minute == 0:
+        return dt.strftime('%b %d %-I %p')
+    else:
+        return dt.strftime('%-I %p')
+
 def plot_data():
     global img, chartData
 
@@ -217,16 +226,17 @@ def plot_data():
     ax.set_title('Solar Panel Production and Consumption')
     ax.legend()
     ax.grid(True)
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=70)
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.4)
 
     # Use AutoDateLocator and DateFormatter to handle time-based data
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S', tz=local_tz))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
 
-    # Use MaxNLocator to limit the number of x-axis labels
-    ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
+    # Adjust X Axis labels to only show full date on day roll-overs
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: custom_date_formatter(x, pos, times)))
+
+    # Use MaxNLocator to limit the number of axis labels
     ax.yaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
 
     # Set y-axis limits manually to avoid outliers
@@ -244,6 +254,7 @@ def plot_data():
 def update_plot():
     while True:
         # Get new data
+        print('Fetching data...')
         prod_cons_data = fetch_data('/ivp/meters/reports/')
         process_data(prod_cons_data)
         plot_data()
