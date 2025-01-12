@@ -4,7 +4,7 @@ Queries local Enphase IQ Gateway API data to build out metrics for graph data
 
 ## Description
 
-The Enphase App (and site) rely on data uploaded from your local Enphase IQ Gateway into the cloud. I often notice significant delays in reporting within the app resulting directly from this data not being uploaded. I wanted a way to report on live data direct from my system w/o having the extra dependencies of live internet connection or enphase application service outagages
+The Enphase App (and site) rely on data uploaded from your local Enphase IQ Gateway into the cloud. I often notice significant delays in reporting within the app resulting directly from this data not being uploaded. I wanted a way to report on live data direct from my system w/o having the extra dependencies of live internet connection or enphase application service outages.
 
 <img src="assets/images/enphasePyApp.png" width="80%" />
 
