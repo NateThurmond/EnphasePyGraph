@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib
 import requests
+import zoneinfo
 from TokenManager import TokenManager
 from RequestStorage import RequestStorage
 
@@ -21,7 +22,8 @@ matplotlib.use('Agg')
 app = Flask(__name__)
 
 # Get the local timezone
-local_tz = get_localzone()
+# local_tz = get_localzone()
+local_tz = zoneinfo.ZoneInfo("America/Chicago")
 
 # Suppress InsecureRequestWarning - these requests are made to your local IQ Gateway, presumably you trust it
 warnings.filterwarnings('ignore', category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -224,10 +226,13 @@ def plot_data():
     ax.yaxis.set_major_locator(MaxNLocator(nbins='auto', prune='both'))
 
     # Set y-axis limits manually to avoid outliers
-    ax.set_ylim([
-        min(min(production), min(net_consumption), min(tot_consumption)) * 1.1,
-        max(max(production), max(net_consumption), max(tot_consumption)) * 1.1
-    ])
+    ymin = min(min(production), min(net_consumption), min(tot_consumption))
+    ymax = max(max(production), max(net_consumption), max(tot_consumption))
+    if abs(ymax - ymin) < 1e-6:  # If they are (almost) identical
+        ymin -= 1
+        ymax += 1
+    ax.set_ylim([ymin * 1.1, ymax * 1.1])
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
 
     # Save the plot to a BytesIO object
     img = io.BytesIO()
